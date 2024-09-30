@@ -1,3 +1,4 @@
+# images similarity calculator
 import os
 import math
 import sys

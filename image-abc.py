@@ -1,4 +1,4 @@
-# computes editing distance between two images
+# computes editing distance between two images' binary strs
 import os
 import sys
 from PIL import Image as IMG
