@@ -3,6 +3,7 @@ import os
 import math
 import sys
 import PIL
+import PIL.IcnsImagePlugin
 import PIL.Image
 from time import sleep
 
@@ -13,7 +14,8 @@ class Image:
     def __init__(self, path: str) -> None:
         self.path = path
         self.filename = path.split("\\")[-1]
-        
+        self.pil_img = PIL.Image.Image()
+
         with PIL.Image.open(path) as im:
             self.pixels = im.load()
             self.width, self.height = im.size
@@ -21,7 +23,102 @@ class Image:
     def show(self):
         with PIL.Image.open(os.path.join(self.path)) as im:
             im.show()
+        
         sleep(1.5)
+
+
+# TODO: rename methods
+class ColourPalette:
+    def __init__(self, img: Image) -> None:
+        self.img = img
+        self.pixels = None
+        self.palette = None
+        self.palette_size = None
+    
+
+    def legacy_dominative_colour(self) -> tuple:
+        """
+        Computes each pixel channel's arithmetic mean in image
+        """
+        img = self.img
+        sum_rgb = [0, 0, 0]
+        pixels = 0
+
+        for j in range(img.height):
+            for i in range(img.width):
+                pix = img.pixels[i, j]
+                sum_rgb[0] += pix[0]
+                sum_rgb[1] += pix[1]
+                sum_rgb[2] += pix[2]
+                pixels += 1
+        return tuple(map(lambda ch: round(ch / pixels), sum_rgb))
+
+
+    def dominative_colour(self, chunk_pixels: list[tuple]) -> tuple:
+        """
+        Computes each pixel channel's arithmetic mean in chunk_pixels
+        """
+        sum_rgb = [0, 0, 0]
+        pixels_count = 0
+
+        for p in chunk_pixels:
+            sum_rgb[0] += p[0]
+            sum_rgb[1] += p[1]
+            sum_rgb[2] += p[2]
+            pixels_count += 1
+        return tuple(map(lambda ch: round(ch / pixels_count), sum_rgb))
+
+
+    def dominative_colours(self, num=1):
+        """
+        Constructs a palette with 'num' image's colours
+        """
+        if not self.pixels: self._get_pixels()
+        self.palette_size = num
+
+        pix_total = self.img.height * self.img.width
+        chunk_len = pix_total // num
+        
+        palette = []
+        start_i = 0
+        end_i = chunk_len
+        for i in range(num):
+            palette.append(self.dominative_colour( self.pixels[start_i:end_i] ))
+            start_i += chunk_len
+            end_i += chunk_len
+        print(palette)
+        self.palette = palette
+
+
+    def _get_pixels(self):
+        """
+        Adds all pixels in list (self.pixels)
+        Need this, because cannot iterate self.img.pixels
+        """
+        pixels = []
+        for j in range(self.img.height):
+            for i in range(self.img.width):
+                pixels.append(self.img.pixels[i, j])
+        
+        pixels.sort()
+        # print(pixels)
+        self.pixels = pixels
+    
+
+    def show_palette(self):
+        """
+        Constructs palette img and displays it
+        """
+        palette_img = PIL.Image.new("RGB", (720 * self.palette_size, 1280))
+        
+        colours = []
+        start_pos = 0
+        for col in self.palette:
+            palette_entry = PIL.Image.new("RGB", (720, 1280), col)
+            colours.append(palette_entry)
+            palette_img.paste(palette_entry, (start_pos, 0))
+            start_pos += 720
+        palette_img.show()
 
 
 class Comparer:
@@ -137,20 +234,23 @@ def explore_compare_imgs(dir, comparisons: list):
 
 if __name__ == "__main__":
 
-    sys.setrecursionlimit(3000)
+    # sys.setrecursionlimit(3000)
     im = Image(BASE_IMG_PATH)
-    comparisons = []
-    explore_compare_imgs(DIRECTORY, comparisons)
-    comparisons.sort()
-    print(f"Compared among {len(comparisons)}")
-    im.show()
+    # comparisons = []
+    # explore_compare_imgs(DIRECTORY, comparisons)
+    # comparisons.sort()
+    # print(f"Compared among {len(comparisons)}")
+    # im.show()
 
-    print(f"\nTop five similarities:")
-    for i in range(1, 6):
-        image = comparisons[-i].target_img
-        image.show()
-        print(f"{image.filename} : {comparisons[-i].simi}")
+    # print(f"\nTop five similarities:")
+    # for i in range(1, 6):
+    #     image = comparisons[-i].target_img
+    #     image.show()
+    #     print(f"{image.filename} : {comparisons[-i].simi}")
 
-    stranger = comparisons[0].target_img
-    stranger.show()
-    print(f"Least similarity with {stranger.filename} is {comparisons[0].simi}")
+    # stranger = comparisons[0].target_img
+    # stranger.show()
+    # print(f"Least similarity with {stranger.filename} is {comparisons[0].simi}")
+    palette = ColourPalette(im)
+    print(palette.dominative_colours(10))
+    palette.show_palette()
